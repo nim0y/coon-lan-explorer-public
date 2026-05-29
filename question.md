@@ -156,6 +156,33 @@ class DatabaseConnector {
 }
 ```
 
+## Нестандартный вопрос к разделу «Классы и объекты»
+
+### **Вопрос: Какова скрытая цена использования делегата `by lazy` на главном потоке Android-приложения и как правильно её минимизировать?**
+
+* **Глубокий ответ:** 
+По умолчанию делегат `lazy {}` в Kotlin работает в режиме потокобезопасности `LazyThreadSafetyMode.SYNCHRONIZED`. Это означает, что под капотом для инициализации значения используется тяжелый синхронизированный блок (`synchronized(lock)`). 
+Если свойство гарантированно инициализируется и используется только на одном потоке (например, на главном UI-потоке во `ViewModel`, `Activity` или `Fragment`), использование синхронизации избыточно. Блокировка `synchronized` создает лишние накладные расходы на работу процессора, мониторы JVM и может вызывать микрофризы при частой инициализации множества ленивых свойств во время отрисовки списков или создания экранов.
+
+* **Решение:** 
+Для свойств, используемых строго на одном потоке (например, на Main-потоке), необходимо явно указывать режим `LazyThreadSafetyMode.NONE`. Это отключает генерацию блокировок `synchronized` и делает инициализацию максимально быстрой.
+
+* **Практический пример:**
+```kotlin
+class ProductViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    
+    // ПЛОХО (по умолчанию): Привязка каждого ViewHolder будет дергать synchronized блокировки
+    val titleTextViewSynchronized by lazy { 
+        itemView.findViewById<TextView>(R.id.tvTitle) 
+    }
+
+    // ОТЛИЧНО: Инициализация идет на UI-потоке без накладных расходов на синхронизацию
+    val titleTextViewFast by lazy(LazyThreadSafetyMode.NONE) { 
+        itemView.findViewById<TextView>(R.id.tvTitle) 
+    }
+}
+```
+
 ---
 
 ## 2. Data Class и Enum
@@ -267,6 +294,52 @@ key.scopeId = "new_scope"
 val cachedData = cache[key] 
 
 println("Данные из кэша: $cachedData") // Выведет NULL! Объект утерян в памяти HashMap.
+```
+---
+
+## Нестандартный вопрос к разделу «Data Class и Enum»
+
+### **Вопрос: Каким образом использование `value class` (inline классов) может привести к непреднамеренному выделению памяти (boxing) в куче, полностью нивелируя их пользу для оптимизации?**
+
+* **Глубокий ответ:** 
+`value class` спроектирован для того, чтобы оборачивать примитивные типы или строки без создания физического объекта в куче (компилятор пытается подставить базовый примитивный тип везде в коде). 
+Однако оптимизация полностью ломается (происходит автоупаковка/boxing — создание реального объекта в куче), если:
+  1. `value class` приводится к интерфейсу, который он реализует.
+  2. `value class` используется в качестве обобщенного типа `T` (Generics), так как JVM generics работают только с объектами.
+  3. `value class` принудительно приводится к типу `Any` или передается в nullable-контекст (где ожидается `MyValueClass?`).
+
+* **Практический пример:**
+```kotlin
+interface IdHolder
+
+@JvmInline
+value class UserId(val rawId: String) : IdHolder
+
+class UserRepository {
+    // 1. ОПТИМАЛЬНО: Объект в куче не создается. В байткод подставляется обычный String
+    fun getDirect(id: UserId) {
+        println(id.rawId)
+    }
+
+    // 2. НЕОПТИМАЛЬНО (Boxing): Передача через интерфейс заставляет JVM создать реальный объект-обертку в куче
+    fun getViaInterface(holder: IdHolder) {
+        println(holder.toString())
+    }
+    
+    // 3. НЕОПТИМАЛЬНО (Boxing): Generics стираются в Object, происходит автоупаковка
+    fun <T> getViaGeneric(id: T) {
+        println(id.toString())
+    }
+}
+
+fun execute() {
+    val userId = UserId("usr_12345")
+    val repo = UserRepository()
+    
+    repo.getDirect(userId)          // 0 аллокаций в куче!
+    repo.getViaInterface(userId)    // АЛЛОКАЦИЯ: Создан физический объект UserId в куче!
+    repo.getViaGeneric(userId)      // АЛЛОКАЦИЯ: Создан физический объект UserId в куче!
+}
 ```
 
 ---
@@ -388,6 +461,37 @@ inline fun <reified T : Any> createNewInstance(): T {
     return T::class.java.getDeclaredConstructor().newInstance()
 }
 ```
+## Нестандартный вопрос к разделу «Inline, Generics, Abstract Classes»
+
+### **Вопрос: Почему при использовании `inline` функций с лямбда-параметрами внутри рекурсивных структур данных или тяжелых циклов может произойти переполнение стека вызовов JVM (StackOverflowError) гораздо раньше, чем при использовании обычных функций?**
+
+* **Глубокий ответ:** 
+Обычные функции при вызове создают новый стек-фрейм в стеке вызовов (`Call Stack`). `inline` функции копируют свой код непосредственно в тело вызывающего метода. 
+Если у вас есть глубоко вложенная структура данных или рекурсивный обход, в котором многократно вызывается большая `inline` функция с лямбдами, размер *одного конкретного* стек-фрейма вызывающего метода начинает лавинообразно расти. Каждый шаг компилятор раздувает тело метода, добавляя туда локальные переменные из инлайненного кода. 
+Когда JVM пытается выделить память под этот гигантский стек-фрейм при очередном вызове, лимит памяти стека (`-Xss`) исчерпывается моментально, вызывая `StackOverflowError` при гораздо меньшей глубине рекурсии, чем при использовании обычных функций.
+
+* **Практический пример:**
+```kotlin
+sealed class Node {
+    data class Branch(val left: Node, val right: Node) : Node()
+    data class Leaf(val value: Int) : Node()
+}
+
+// ОПАСНО: Большая инлайненная функция рекурсивного обхода дерева
+inline fun Node.forEachLeaf(crossinline action: (Int) -> Unit) {
+    when (this) {
+        is Node.Leaf -> action(this.value)
+        is Node.Branch -> {
+            // Рекурсивный вызов метода, код которого будет раздут компилятором вглубь
+            this.left.forEachLeaf(action) 
+            this.right.forEachLeaf(action)
+        }
+    }
+}
+// Если дерево будет глубоким, StackOverflowError произойдет при глубине в несколько раз меньшей,
+// чем если бы функция Node.forEachLeaf была обычной (не inline).
+```
+
 
 ---
 
@@ -509,6 +613,43 @@ sealed interface CorePlugin // Нет наследников в ":core"
 // Модуль ":feature" (зависит от ":core")
 // Ошибка компиляции: "Inheritor of a sealed class or interface declared in another module"
 class CustomPlugin : CorePlugin 
+```
+
+## Нестандартный вопрос к разделу «Interfaces и Sealed Interfaces»
+
+### **Вопрос: Каким образом sealed-интерфейсы в сочетании со смарт-кастами Kotlin могут создать скрытую уязвимость безопасности («тихий баг»), если один из модулей проекта обновит библиотечную зависимость?**
+
+* **Глубокий ответ:** 
+Когда мы используем `when` над `sealed` интерфейсом без ветки `else`, компилятор гарантирует полноту проверки. Однако, если наследники sealed-интерфейса объявлены в многомодульном проекте в сторонней библиотеке (которую мы подключаем как зависимость), и эта библиотека обновляется:
+  1. В новой версии библиотеки в `sealed interface` добавляется новый наследник.
+  2. Наш модуль компилируется *без* пересборки зависимого кода (например, при инкрементальной сборке или динамической линковке).
+  В рантайме программа столкнется с ситуацией, когда в `when` придет новый, необработанный тип. Так как ветки `else` не было, а проверка компилятора была пройдена на старой версии библиотеки, JVM выбросит необрабатываемое исключение `NoWhenBranchMatchedException` в рантайме, что приведет к моментальному крашу приложения.
+
+* **Практический пример:**
+```kotlin
+// Модуль ":payment-sdk" (Библиотека версии 1.0)
+sealed interface PaymentType {
+    object Card : PaymentType
+    object Cash : PaymentType
+}
+
+// Модуль ":app"
+fun process(payment: PaymentType) {
+    // Скомпилировано без ветки else, так как на момент сборки типов было всего 2
+    when (payment) {
+        PaymentType.Card -> payWithCard()
+        PaymentType.Cash -> payWithCash()
+    }
+}
+
+// Библиотека ":payment-sdk" обновилась до версии 2.0 в рантайме (добавлен новый тип):
+// sealed interface PaymentType {
+//     object Card : PaymentType
+//     object Cash : PaymentType
+//     object Crypto : PaymentType // НОВЫЙ ТИП
+// }
+
+// Вызов process(PaymentType.Crypto) выбросит краш NoWhenBranchMatchedException!
 ```
 
 ---
@@ -656,6 +797,36 @@ scope.launch(Dispatchers.Main) {
 }
 ```
 
+## Нестандартный вопрос к разделу «Основы корутин»
+
+### **Вопрос: Как поведет себя системный контекст логирования (например, MDC — Mapped Diagnostic Context или Java `ThreadLocal`) при переключении диспетчеров корутин, и как предотвратить потерю этих данных?**
+
+* **Глубокий ответ:** 
+Стандартные механизмы `ThreadLocal` и библиотеки логирования (SLF4J/MDC) привязывают данные (например, ID сессии пользователя, ID лог-запроса) строго к **текущему физическому потоку Java**. 
+Корутины по своей природе асинхронны и могут постоянно переключать физические потоки при вызовах `withContext` или после точек приостановки (`suspend`). Когда корутина засыпает на потоке `Thread-A` и просыпается на потоке `Thread-B`, все данные из `ThreadLocal` / `MDC` на новом потоке будут утеряны, а на старом потоке — останутся, что приведет к утечке контекста безопасности или логам с чужими ID.
+
+* **Решение:** 
+Необходимо использовать специализированные адаптеры контекста корутин, такие как `asContextElement()`. Они перехватывают моменты приостановки и возобновления корутины, автоматически копируя и восстанавливая значения `ThreadLocal` на тех потоках, куда планировщик перенаправил корутину.
+
+* **Практический пример:**
+```kotlin
+val userIdThreadLocal = ThreadLocal<String>()
+
+fun logWithUserContext() {
+    val contextElement = userIdThreadLocal.asContextElement(value = "USER_ALICE")
+    
+    // Запускаем корутину с привязкой ThreadLocal к контексту корутины
+    scope.launch(Dispatchers.Default + contextElement) {
+        println("Шаг 1 (Default): Пользователь = ${userIdThreadLocal.get()}") // Напечатает USER_ALICE
+        
+        withContext(Dispatchers.IO) {
+            // Под капотом корутина переключила поток, но asContextElement скопировал данные!
+            println("Шаг 2 (IO): Пользователь = ${userIdThreadLocal.get()}") // Напечатает USER_ALICE
+        }
+    }
+}
+```
+
 ---
 
 ## 6. Flow
@@ -763,6 +934,34 @@ val safeFlow = callbackFlow {
     }
     sdk.register(listener)
     awaitClose { sdk.unregister(listener) } // Очистка при отмене подписки
+}
+```
+
+## Нестандартный вопрос к разделу «Flow»
+
+### **Вопрос: Каким образом преобразование холодного `Flow` в горячий `StateFlow` с помощью `stateIn()` может привести к вечной утечке памяти и ресурсов сетевого соединения при неверном выборе параметра `SharingStarted`?**
+
+* **Глубокий ответ:** 
+Когда мы преобразуем холодный поток в горячий с помощью `.stateIn(scope, started, initial)`, время жизни результирующего `StateFlow` привязывается к переданному `scope` (обычно `viewModelScope`). 
+Параметр `started` определяет стратегию жизни подписки на исходный (холодный) поток:
+  * Если указать `SharingStarted.Eagerly` или `SharingStarted.Lazily`, то подписка на источник начнется сразу и **никогда не прекратится**, пока жив сам `scope` (ViewModel), даже если у экрана (UI) больше нет ни одного активного подписчика (например, экран свернут или ушел в фоновый стек навигации). Это приводит к постоянному фоновому скачиванию данных из сети/БД и утечке ресурсов батареи и памяти.
+  * **Правильное решение:** Использовать `SharingStarted.WhileSubscribed(stopTimeoutMillis = 5000)`. Эта стратегия останавливает подписку на источник, если в течение 5 секунд у потока не осталось ни одного активного подписчика в UI, что идеально сохраняет ресурсы при повороте экрана (поворот занимает менее 1-2 секунд, подписка не успеет сброситься).
+
+* **Практический пример:**
+```kotlin
+class NewsViewModel(private val api: NewsApi) : ViewModel() {
+
+    // КРИТИЧЕСКАЯ ОШИБКА: Запрос к сети будет идти вечно, даже если пользователь свернул экран
+    val newsEagerly = api.getNewsFlow()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    // ИДЕАЛЬНО: Поток засыпает через 5 секунд после ухода пользователя с экрана
+    val newsWithTimeout = api.getNewsFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5000),
+            initialValue = emptyList()
+        )
 }
 ```
 
@@ -917,6 +1116,49 @@ class ProfileMviViewModel : ViewModel() {
 }
 ```
 
+## Нестандартный вопрос к разделу «Clean Architecture / MVVM / MVI»
+
+### **Вопрос: Как реализовать паттерн «Оптимистичное обновление UI» (Optimistic Updates) на уровне MVI-архитектуры и базы данных Room (SSOT), предотвратив мерцание и рассинхронизацию интерфейса при ошибках сети?**
+
+* **Глубокий ответ:** 
+Оптимистичное обновление подразумевает, что при действии пользователя (например, лайк посту) мы мгновенно меняем состояние UI на «лайк поставлен», не дожидаясь ответа сервера. 
+Поскольку Room является единственным источником истины (SSOT), алгоритм должен быть следующим:
+  1. View отправляет Intent `LikeClicked`.
+  2. ViewModel мгновенно записывает временное измененное состояние локально в базу данных Room. UI автоматически перерисовывается.
+  3. Параллельно запускается сетевой запрос к API.
+  4. Если сервер вернул ошибку, ViewModel обязана совершить **откат транзакции (rollback)** — вернуть исходное состояние в БД. UI снова автоматически перерисуется, вернув старое состояние. Это исключает ручное управление состоянием во ViewModel и гарантирует консистентность данных.
+
+* **Практический пример:**
+```kotlin
+@Dao
+interface PostDao {
+    @Query("UPDATE posts SET isLiked = :liked WHERE id = :postId")
+    suspend fun updateLikeStatus(postId: String, liked: Boolean)
+}
+
+class PostViewModel(private val postDao: PostDao, private val api: PostApi) : ViewModel() {
+
+    fun onLikeClicked(postId: String, currentLikeStatus: Boolean) {
+        viewModelScope.launch {
+            val targetStatus = !currentLikeStatus
+            
+            // Шаг 1: Оптимистично пишем в БД (UI реагирует мгновенно через Flow из Room)
+            postDao.updateLikeStatus(postId, targetStatus)
+            
+            try {
+                // Шаг 2: Шлем запрос на сервер
+                api.sendLike(postId, targetStatus)
+            } catch (e: Exception) {
+                // Шаг 3: В случае ошибки делаем откат в БД. UI сам вернет старое состояние
+                postDao.updateLikeStatus(postId, currentLikeStatus)
+                showUiError(e)
+            }
+        }
+    }
+}
+```
+
+
 ---
 
 ## 8. DI (Dependency Injection)
@@ -993,6 +1235,32 @@ class AnalyticsService @Inject constructor(
 )
 ```
 
+## Нестандартный вопрос к разделу «DI (Dependency Injection)»
+
+### **Вопрос: Каким образом внедрение интерфейса `dagger.Lazy<T>` или `Provider<T>` в конструктор класса помогает решить проблему циклической зависимости (Circular Dependency) без изменения архитектуры классов?**
+
+* **Глубокий ответ:** 
+Циклическая зависимость возникает, когда класс `A` требует для создания класс `B`, а класс `B` требует класс `A` (`A -> B -> A`). В обычном режиме компилятор Hilt/Dagger выдаст ошибку сборки, так как физически невозможно вызвать конструктор ни одного из классов первым.
+Внедрение `dagger.Lazy<T>` или `Provider<T>` разрывает этот жесткий круг. Вместо создания реального объекта `T` в момент вызова конструктора, DI-контейнер внедряет легкий прокси-объект фабрики. Реальный экземпляр класса `T` будет создан только в тот момент, когда мы впервые явно вызовем метод `lazyInstance.get()`. К этому моменту оба класса уже будут успешно сконструированы в памяти.
+
+* **Практический пример:**
+```kotlin
+// Циклическая зависимость: Сервис авторизации требует Логгер, а Логгер шлет отчеты через Сервис авторизации
+class AuthService @Inject constructor(private val logger: Lazy<AppLogger>) {
+    fun login() {
+        // Объект AppLogger создается только в этот момент
+        logger.get().log("User logged in") 
+    }
+}
+
+class AppLogger @Inject constructor(private val authService: AuthService) {
+    fun log(msg: String) {
+        println(msg)
+    }
+}
+```
+
+
 ---
 
 # Блок 5: Основные библиотеки Android
@@ -1068,6 +1336,41 @@ interface UserDao {
 fun badGetUsers(): List<UserWithOrders>
 ```
 
+## Нестандартный вопрос к разделу «Room»
+
+### **Вопрос: Как написать кастомный триггер невалидности таблиц Room для реализации сложного кэширования связанных InMemory данных без постоянных дисковых запросов?**
+
+* **Глубокий ответ:** 
+При работе с Room мы часто подписываемся на `Flow<List<Data>>`. Любое изменение в таблице заставляет Room перечитывать весь список с диска. Если таблица меняется часто (например, чат-сообщения), постоянное дисковое чтение создает высокую нагрузку.
+Мы можем создать InMemory кэш (например, на уровне репозитория), и использовать низкоуровневый API Room `InvalidationTracker` напрямую. Мы регистрируем слушатель изменений конкретной таблицы. При изменении данных на диске мы не делаем тяжелый SQL-запрос `SELECT`, а просто обновляем или инвалидируем наш легкий InMemory кэш в оперативной памяти, отдавая данные подписчикам мгновенно.
+
+* **Практический пример:**
+```kotlin
+class SmartCacheRepository(private val db: AppDatabase) {
+    private val memoryCache = ConcurrentHashMap<String, String>()
+
+    init {
+        // Напрямую подписываемся на триггер изменений таблицы Room в обход SQL-запросов
+        db.invalidationTracker.addObserver(
+            object : InvalidationTracker.Observer(arrayOf("users_table")) {
+                override fun onInvalidated(tables: Set<String>) {
+                    // Таблица на диске изменилась. Сбрасываем только InMemory кэш!
+                    memoryCache.clear()
+                    println("InMemory кэш инвалидирован")
+                }
+            }
+        )
+    }
+    
+    fun getUserData(userId: String): String {
+        return memoryCache.getOrPut(userId) {
+            // Если в кэше пусто — делаем единственный запрос к диску
+            db.userDao().getUserNameDirect(userId)
+        }
+    }
+}
+```
+
 ---
 
 ## 10. Retrofit
@@ -1136,6 +1439,40 @@ if (response.isSuccessful) {
     // или использовать блок 'use': response.body()?.use { ... }
 }
 ```
+
+## Нестандартный вопрос к разделу «Retrofit»
+
+### **Вопрос: Как написать кастомный `CallAdapter.Factory` для Retrofit, чтобы автоматически перехватывать все ошибки HTTP/Сети и преобразовывать их в строго типизированный sealed-класс `NetworkResult<T>` на уровне самой библиотеки, избавившись от блоков `try/catch` во всех репозиториях проекта?**
+
+* **Глубокий ответ:** 
+Стандартный Retrofit при ошибках выбрасывает исключения (`IOException`, `HttpException`). Это заставляет разработчиков писать дублирующиеся блоки `try-catch` во всех методах всех репозиториев.
+Создание кастомного `CallAdapter` позволяет перехватить вызов OkHttp на самом низком уровне. Мы можем обернуть исходный объект `Call<T>` в наш кастомный класс `NetworkResultCall<T>`, который внутри метода `enqueue` проверяет успешность ответа:
+  * При успехе возвращает `NetworkResult.Success(body)`.
+  * При ошибке сети возвращает `NetworkResult.NetworkError(exception)`.
+  * При ошибке сервера возвращает `NetworkResult.ApiError(code, message)`.
+  В результате все методы API в проекте начинают возвращать чистый результат без вызова исключений.
+
+* **Практический пример:**
+```kotlin
+// Наш целевой закрытый тип результата
+sealed interface NetworkResult<out T> {
+    data class Success<T>(val data: T) : NetworkResult<T>
+    data class ApiError(val code: Int, val message: String) : NetworkResult<Nothing>
+    data class NetworkError(val error: Throwable) : NetworkResult<Nothing>
+}
+
+// Интерфейс API больше не требует try-catch при вызовах!
+interface UserNetworkApi {
+    @GET("profile")
+    suspend fun getProfile(): NetworkResult<UserProfileDto> 
+}
+
+// (Реализация CallAdapter.Factory и CallAdapter регистрируется при создании Retrofit):
+// val retrofit = Retrofit.Builder()
+//     .addCallAdapterFactory(NetworkResultCallAdapterFactory()) // Регистрируем фабрику
+//     ...
+```
+
 
 ---
 
@@ -1231,6 +1568,36 @@ class DiskSaver : BaseSaver() {
   * **Используем:** **Pure Fabrication** (Чистая выдумка) — мы создаем искусственные классы, не отражающие реальные объекты бизнеса, чтобы разгрузить другие классы.
   * **Нарушаем:** **High Cohesion** (Высокая связность). Обычно класс-утилита (например, `AppUtils` или `CommonUtils`) превращается в свалку разнородных статических методов, которые никак не связаны между собой логически (и форматирование дат, и шифрование паролей, и проверка подключения к интернету). Правильный подход — заменять такие утилиты мелкими специализированными классами (например, `DateFormatter`, `CryptoProvider`).
 
+
+## Нестандартный вопрос к разделу «ООП и SOLID / Дополнительные принципы»
+
+### **Вопрос: Почему использование Kotlin-лямбд (`(T) -> Unit`) вместо традиционных Java-интерфейсов для обратных вызовов является высшим проявлением принципа разделения интерфейса (Interface Segregation Principle — ISP), и в каких сценариях Android-разработки это может привести к скрытым утечкам памяти?**
+
+* **Глубокий ответ:** 
+  * **Плюс для ISP:** Традиционный интерфейс (например, `TextWatcher` в Android SDK) заставляет класс переопределять три метода, даже если нужен только один. Передача точечных Kotlin-лямбд (например, `onTextChanged: (String) -> Unit`) изолирует зависимость до абсолютно неделимого минимума (одна лямбда = один метод). Это идеальное разделение интерфейса.
+  * **Минус для памяти (Утечка):** Каждая некороткоживущая (`non-inline`) лямбда-функция в Kotlin на уровне JVM компилируется в объект анонимного класса (наследник интерфейса `Function`). Если эта лямбда захватывает контекст внешнего класса (обращается к методам или свойствам `Activity` или `Fragment`), этот анонимный класс сохраняет сильную ссылку (`this$0`) на весь UI-компонент. Если сохранить эту лямбду в долгоживущий синглтон или класс данных, произойдет неявная утечка памяти, которую очень сложно обнаружить, так как ссылки на `Activity` в исходном коде не видно напрямую.
+
+* **Практический пример утечки:**
+```kotlin
+class MyCustomAuthTracker {
+    var onAuthSuccess: (() -> Unit)? = null // Хранит лямбду вечно в памяти синглтона
+}
+
+class LoginFragment : Fragment() {
+    private val tracker = MyCustomAuthTracker() // Предположим, живет долго
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        
+        tracker.onAuthSuccess = {
+            // КРИТИЧЕСКАЯ УТЕЧКА: Лямбда неявно захватывает ссылку на LoginFragment (this$0),
+            // чтобы вызвать метод showHomeSelector(). Фрагмент никогда не удалится из памяти!
+            showHomeSelector() 
+        }
+    }
+}
+```
+
 ---
 
 # Блок 7: Jetpack Compose
@@ -1315,6 +1682,35 @@ fun AnimatedItem(scrollState: ScrollState) {
     Box(Modifier.graphicsLayer { translationY = scrollState.value.toFloat() })
 }
 ```
+
+## Нестандартный вопрос к разделу «Основы Compose»
+
+### **Вопрос: Каким образом Snapshot-система Compose позволяет безопасно обновлять `MutableState` из фоновых потоков без вызова `CalledFromWrongThreadException`, и как объединить изменение нескольких состояний в одну атомарную транзакцию?**
+
+* **Глубокий ответ:** 
+В отличие от классических Android View, которые жестко привязаны к UI-потоку, Compose-состояния (`MutableState`) используют систему **Snapshots** (аналог контроля версий Git для оперативной памяти). 
+Каждый поток может работать со своим изолированным «снимком» состояния. Изменение `mutableStateOf` на фоновом потоке безопасно: Snapshot-система зафиксирует изменения и автоматически отправит уведомление на главный поток для планирования рекомпозиции.
+Если нам нужно изменить несколько связанных состояний (например, координаты `x` и `y` игрового персонажа) одновременно, чтобы Compose не начал рекомпозицию наполовину (когда `x` уже обновился, а `y` еще нет), мы можем объединить эти изменения в атомарную транзакцию с помощью метода `Snapshot.withMutableSnapshot { ... }`.
+
+* **Практический пример:**
+```kotlin
+class GameEngine {
+    val posX = mutableStateOf(0)
+    val posY = mutableStateOf(0)
+
+    fun moveCharacterDiagonally() {
+        thread(start = true) {
+            // Атомарная транзакция: Compose увидит изменения обоих состояний ОДНОВРЕМЕННО.
+            // Рекомпозиция запустится только после закрытия блока, исключая мерцание кадра.
+            androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
+                posX.value = posX.value + 10
+                posY.value = posY.value + 10
+            }
+        }
+    }
+}
+```
+
 
 ---
 
@@ -1428,4 +1824,32 @@ fun onCreate() {
         }
     }
 }
+```
+
+## Нестандартный вопрос к разделу «Утечки памяти (Memory Leaks)»
+
+### **Вопрос: Каким образом утилита R8/Proguard при включенной обфускации и оптимизации может полностью сломать контракт null-safety языка Kotlin в моделях данных при десериализации (например, через Gson), приводя к тому, что в non-nullable свойствах (`val name: String`) рантайма оказывается физический `null` без выброса NPE?**
+
+* **Глубокий ответ:** 
+Библиотеки сериализации (такие как `Gson`) используют Java-рефлексию и класс `Unsafe` для создания объектов в обход конструкторов Kotlin. Они создают экземпляр класса напрямую в памяти, заполняя поля дефолтными значениями, а затем маппят JSON.
+Если в JSON отсутствует поле, помеченное в Kotlin как не-nullable (`val email: String`), Gson не выбросит ошибку, а просто оставит поле равным `null` в памяти JVM.
+Если утилита R8/Proguard сожмет и удалит метаданные Kotlin (`@Metadata`), рантайм Kotlin потеряет информацию о том, какие поля были non-nullable. Программа продолжит работать с `null` в поле `email`. Ошибка (NPE) выстрелит гораздо позже — в случайном месте кода при попытке вызвать метод у этого свойства (например, `email.length`), что делает отладку крайне сложной.
+
+* **Решение:** 
+  1. Использовать современные библиотеки сериализации со встроенной поддержкой Kotlin (например, `Kotlinx Serialization` или `Moshi`), которые проверяют контракты null-safety на этапе парсинга и выбрасывают ошибку немедленно.
+  2. Настраивать Proguard правила (`-keepclassmembers`), защищающие конструкторы моделей данных от оптимизаций.
+
+* **Практический пример:**
+```kotlin
+// Наша модель данных
+@Keep // Защищает класс от обфускации, но не гарантирует защиту конструктора от Gson + R8
+class UserProfile(
+    val id: String,
+    val email: String // Non-nullable тип на уровне языка Kotlin
+)
+
+// Если в JSON пришло: {"id": "101"} (поле email отсутствует)
+// При парсинге через Gson + включенный R8:
+// объект UserProfile будет успешно создан! Поле email физически будет равно NULL в памяти.
+// Краш с NullPointerException произойдет только при вызове: userProfile.email.toUpperCase()
 ```
