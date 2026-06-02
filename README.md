@@ -14,7 +14,10 @@ CoonLanExplorer — это быстрый, легкий и максимальн�
   <img src="screenshots/Screenshot 2026-06-02 222724.png" width="600" alt="Desktop Interface">
   <img src="screenshots/Screenshot 2026-06-02 222811.png" width="600" alt="Desktop Interface">
   <img src="screenshots/Screenshot 2026-06-02 222822.png" width="600" alt="Desktop Interface">
+
+  
   ---
+  
 ## 📸 Скриншоты мобильная версия (Screenshots)
   <img src="screenshots/Screenshot 2026-06-02 222848.png" width="400" alt="Mobile Explorer">
   <img src="screenshots/Screenshot 2026-06-02 222900.png" width="400" alt="Mobile Explorer">
