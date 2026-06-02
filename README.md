@@ -1,7 +1,9 @@
 # 🦝 CoonLanExplorer
 **Ваш личный мост между устройствами в локальной сети.**
 
-CoonLanExplorer — это быстрый, легкий и максимально защищенный файловый менеджер, который позволяет управлять файлами на компьютере прямо с вашего Android-смартфона или другого ПК. Забудьте о проводах и облачных сервисах — ваши данные не покидают вашу сеть.
+CoonLanExplorer — это кроссплатформенный файловый менеджер и инструмент для обмена данными, позволяющий управлять файлами на компьютере напрямую с мобильного устройства или другого ПК в пределах одной локальной сети. Данные передаются напрямую между устройствами без использования внешних серверов или облачных хранилищ.
+
+*Этот репозиторий является публичной точкой доступа к проекту: здесь публикуются официальные релизы, ведется документация и принимаются сообщения об ошибках (Issues).*
 
 [English](#features-en) | [Русский](#возможности-ru)
 
@@ -58,21 +60,31 @@ CoonLanExplorer — это быстрый, легкий и максимальн�
 <a name="features-en"></a>
 ## ✨ Key Features
 
-*   **Fast Connection:** Scan a QR code to link your devices instantly.
-*   **Top-Tier Security:** E2EE encryption (AES-256-GCM) with mandatory PIN-based authentication.
-*   **Network Discovery:** Automatic detection of servers in your local network.
-*   **Remote Actions:** Open files on your PC's desktop using your smartphone.
-*   **Portable Server:** Run the server directly from the desktop or mobile app interface.
+*   **Fast Connection:** Scan a QR code to link your devices without entering IP addresses manually.
+*   **Encrypted Channel:** Data protection using AES-256-GCM encryption with ECDH key exchange.
+*   **Network Discovery:** Automatic discovery of active servers in the local Wi-Fi/LAN network.
+*   **Batch Operations:** Transfer folders as zip-archives generated on-the-fly.
+*   **Remote Actions:** Open documents or play media on your desktop machine directly from your phone.
+*   **Access Control:** Configure read-only modes and restrict access to specific directories.
 
 ---
 
 ## 🛠 Технологии (Tech Stack)
 
-Приложение создано с использованием современных технологий:
-*   **Kotlin Multiplatform (KMP)**
-*   **Compose Multiplatform** (UI)
-*   **Ktor** (Сеть)
-*   **AES-GCM / ECDH** (Шифрование)
+Приложение разработано с использованием следующих технологий:
+*   **Kotlin Multiplatform (KMP)** — общая бизнес-логика и сетевое взаимодействие для всех платформ.
+*   **Compose Multiplatform** — декларативный пользовательский интерфейс для Android и Desktop.
+*   **Ktor (Client & Server)** — встроенный легковесный веб-сервер и сетевой клиент.
+*   **Coroutines & Flow** — асинхронное выполнение операций ввода-вывода.
+
+---
+
+## 💬 Обратная связь и поддержка
+
+Если вы столкнулись с ошибкой или хотите предложить новую функцию:
+1. Перейдите во вкладку **[Issues](https://github.com/nim0y/coon-lan-explorer-public/issues)**.
+2. Проверьте, нет ли схожей проблемы в списке открытых.
+3. Если проблема не найдена, создайте новое обращение, подробно описав шаги для воспроизведения бага или суть вашего предложения.
 
 ---
 
