@@ -57,18 +57,6 @@ CoonLanExplorer — это кроссплатформенный файловый
 
 ---
 
-<a name="features-en"></a>
-## ✨ Key Features
-
-*   **Fast Connection:** Scan a QR code to link your devices without entering IP addresses manually.
-*   **Encrypted Channel:** Data protection using AES-256-GCM encryption with ECDH key exchange.
-*   **Network Discovery:** Automatic discovery of active servers in the local Wi-Fi/LAN network.
-*   **Batch Operations:** Transfer folders as zip-archives generated on-the-fly.
-*   **Remote Actions:** Open documents or play media on your desktop machine directly from your phone.
-*   **Access Control:** Configure read-only modes and restrict access to specific directories.
-
----
-
 ## 🛠 Технологии (Tech Stack)
 
 Приложение разработано с использованием следующих технологий:
@@ -89,3 +77,88 @@ CoonLanExplorer — это кроссплатформенный файловый
 ---
 
 *Developed by nim0y with ❤️*
+
+---
+
+<a name="features-en"></a>
+# 🦝 CoonLanExplorer
+
+**Your personal bridge between devices on the local network.**
+
+CoonLanExplorer is a cross-platform file manager and file-sharing solution that allows you to access and manage files on your computer directly from a smartphone or another PC within the same local network.
+
+All communication happens directly between your devices without relying on cloud storage or third-party servers.
+
+> This repository serves as the public hub for the project, where official releases, documentation, and issue tracking are maintained.
+
+---
+
+## ✨ Features
+
+* **⚡ Instant Connection**
+  Scan a QR code displayed on your desktop and connect to your file system in seconds.
+
+* **🛡 Secure Communication**
+  Data is protected using modern encryption (AES-256-GCM + ECDH) and secured with a user-defined PIN code.
+
+* **🔍 Automatic Network Discovery**
+  Automatically detect available servers within your local Wi-Fi or LAN.
+
+* **📦 Smart Downloads**
+  Download individual files or entire directories. Folders are automatically packaged as ZIP archives.
+
+* **🖥 Remote Actions**
+  Open documents, launch applications, or play media on your desktop directly from your mobile device.
+
+* **🚀 Full Control**
+  Monitor connected clients, manage access permissions, and configure server settings with ease.
+
+---
+
+## 🔒 Security
+
+Security is a core part of the project architecture.
+
+* Each connection establishes a unique encrypted session.
+* A user-defined PIN participates in key generation and access protection.
+* Session tokens are temporary and automatically expire.
+* File access is restricted to explicitly allowed directories.
+* Data remains inside your local network and is never routed through external cloud services.
+
+---
+
+## 📥 Download
+
+The latest releases are available in the Releases section.
+
+* **Windows:** MSI installer
+* **Android:** APK package (RuStore release available)
+
+---
+
+## 🛠 Tech Stack
+
+Built with:
+
+* **Kotlin Multiplatform (KMP)** — shared business logic and networking
+* **Compose Multiplatform** — modern UI for Android and Desktop
+* **Ktor Client & Server** — embedded networking stack
+* **Coroutines & Flow** — asynchronous and reactive programming
+
+---
+
+## 💬 Feedback & Support
+
+Found a bug or have an idea for improvement?
+
+1. Open the **Issues** tab.
+2. Check whether a similar issue already exists.
+3. Create a new issue with detailed reproduction steps or a feature request.
+
+Feedback and contributions to the project roadmap are always welcome.
+
+---
+
+*Developed by nim0y with ❤️*
+
+---
