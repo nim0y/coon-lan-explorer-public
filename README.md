@@ -48,12 +48,45 @@ CoonLanExplorer — это кроссплатформенный файловый
 
 ---
 
+Запуск сервера
+Управлять сервером можно напрямую через графический интерфейс Desktop App или Android App.
+
+Для Unix/Linux (Nix) систем или безграфических окружений (headless-серверов) доступна удобная CLI-версия:
+
+Быстрый запуск (из архива релиза)
+```bash
+chmod +x ./server/run-server.sh
+./server/run-server.sh --pin 1234 --path ~/Documents
+```
+
+Ручной запуск (через исходный код)
+```bash
+./gradlew :server:run --args="--pin 1234 --path /vash/put"
+```
+
+Интерактивные команды CLI
+После запуска сервер предоставляет консоль управления для ввода команд:
+
+* `status` — текущее состояние, рабочий порт и список расшаренных папок.
+* `clients` — список подключенных клиентов и статистика передачи данных.
+* `pin <4-цифры>` — смена PIN-кода доступа на лету.
+* `add <путь>` / `remove <путь>` — управление списком разрешенных директорий.
+* `qr` — вывод данных подключения в формате JSON для ручной настройки.
+* `start` / `stop` — запуск и остановка веб-сервера Ktor.
+* `exit` / `quit` — безопасная остановка сервера и завершение работы приложения.
+
+> **Примечание:** Установка 4-значного цифрового PIN-кода обязательна при запуске для обеспечения безопасности ваших данных. Обязательно передавайте аргумент `--pin <4-цифры>`.
+
+
+---
+
 ## 📥 Загрузка (Download)
 
 Вы можете скачать актуальную версию для вашей платформы в разделе **[Releases](https://github.com/nim0y/coon-lan-explorer-public/releases)**.
 
-*   **Windows:** Скачайте `.msi` установщик.
-*   **Android:** Скоро в RuStore / Скачайте `.apk` из релизов.
+*   **nix**        [Server-cli](https://github.com/nim0y/coon-lan-explorer-public/releases) Скачайте `.zip` .
+*   **Windows:**   [MSI](https://github.com/nim0y/coon-lan-explorer-public/releases) / Скачайте `.msi` установщик.
+*   **Android:**   [В RuStore](https://www.rustore.ru/catalog/app/com.coonstudio.coonlanexplorer) / Скачайте `.apk` из релизов.
 
 ---
 
@@ -115,6 +148,37 @@ All communication happens directly between your devices without relying on cloud
 
 ---
 
+Running the Server
+You can manage the server directly through the Desktop App or Android App GUI.
+
+For Unix/Linux (Nix) systems or headless environments, a convenient CLI version is available:
+
+Quick Start (from Release Archive)
+```bash
+chmod +x ./server/run-server.sh
+./server/run-server.sh --pin 1234 --path ~/Documents
+```
+
+Manual Start (from Source Code)
+```bash
+./gradlew :server:run --args="--pin 1234 --path /your/path"
+```
+
+Interactive CLI Commands
+Once started, the server provides an interactive management console:
+
+* `status` — shows current server status, running port, and shared directories.
+* `clients` — lists currently connected clients and data transfer statistics.
+* `pin <4-digits>` — updates access PIN code on the fly.
+* `add <path>` / `remove <path>` — manages the list of allowed directories.
+* `qr` — generates connection details in JSON format for manual setup.
+* `start` / `stop` — starts or stops the embedded Ktor web server.
+* `exit` / `quit` — safely terminates the server and shuts down the application.
+
+> **Note:** Specifying a 4-digit numeric PIN is mandatory for security purposes. Always provide the `--pin <4-digits>` argument on startup.
+
+---
+
 ## 🔒 Security
 
 Security is a core part of the project architecture.
@@ -131,8 +195,9 @@ Security is a core part of the project architecture.
 
 The latest releases are available in the Releases section.
 
-* **Windows:** MSI installer
-* **Android:** APK package (RuStore release available)
+* **nix**        [Server-cli](https://github.com/nim0y/coon-lan-explorer-public/releases) / Download `.zip` from realese.
+* **Windows:**   [MSI](https://github.com/nim0y/coon-lan-explorer-public/releases) / Download `.msi` from realese.
+* **Android:**   [Store](https://www.rustore.ru/catalog/app/com.coonstudio.coonlanexplorer) / Download `.apk` from realese.
 
 ---
 
