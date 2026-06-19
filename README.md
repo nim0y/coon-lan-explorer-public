@@ -1,34 +1,164 @@
 # 🦝 CoonLanExplorer
-**Ваш личный мост между устройствами в локальной сети.**
+
+**Your personal bridge between devices on the local network / Ваш личный мост между устройствами в локальной сети.**
+
+CoonLanExplorer is a cross-platform file manager and sharing utility that allows you to manage files on a computer directly from a mobile device or another PC within the same local network. Data is transferred directly between devices without utilizing external cloud servers.
 
 CoonLanExplorer — это кроссплатформенный файловый менеджер и инструмент для обмена данными, позволяющий управлять файлами на компьютере напрямую с мобильного устройства или другого ПК в пределах одной локальной сети. Данные передаются напрямую между устройствами без использования внешних серверов или облачных хранилищ.
 
-*Этот репозиторий является публичной точкой доступа к проекту: здесь публикуются официальные релизы, ведется документация и принимаются сообщения об ошибках (Issues).*
+---
 
-[English](#features-en) | [Русский](#возможности-ru)
+## 🗺 Navigation / Навигация
+
+*   [English Version](#english-readme)
+*   [Русская версия](#русская-версия)
 
 ---
 
-## 📸 Скриншоты (Screenshots)
+<a name="english-readme"></a>
+
+# English README
+
+## 📸 Screenshots
 
 <p align="center">
-  <img src="screenshots/Screenshot 2026-06-02 222705.png" width="600" alt="Desktop Interface">
-  <img src="screenshots/Screenshot 2026-06-02 222724.png" width="600" alt="Desktop Interface">
-  <img src="screenshots/Screenshot 2026-06-02 222811.png" width="600" alt="Desktop Interface">
-  <img src="screenshots/Screenshot 2026-06-02 222822.png" width="600" alt="Desktop Interface">
+  <img src="screenshots/Screenshot 2026-06-02 222705.png" width="400" alt="Desktop Interface">
+  <img src="screenshots/Screenshot 2026-06-02 222724.png" width="400" alt="Desktop Interface">
+  <img src="screenshots/Screenshot 2026-06-02 222811.png" width="400" alt="Desktop Interface">
+  <img src="screenshots/Screenshot 2026-06-02 222822.png" width="400" alt="Desktop Interface">
 </p>
-  
-  ---
-  
-## 📸 Скриншоты мобильная версия (Screenshots)
+<p align="center">
+  <img src="screenshots/Screenshot 2026-06-02 222848.png" width="180" alt="Mobile Explorer 1">
+  <img src="screenshots/Screenshot 2026-06-02 222900.png" width="180" alt="Mobile Explorer 2">
+  <img src="screenshots/Screenshot 2026-06-02 222911.png" width="180" alt="Mobile Explorer 3">
+  <img src="screenshots/Screenshot 2026-06-02 222921.png" width="180" alt="Mobile Explorer">
+  <img src="screenshots/Screenshot 2026-06-02 222931.png" width="180" alt="Mobile Explorer">
+  <img src="screenshots/Screenshot 2026-06-02 222939.png" width="180" alt="Mobile Explorer">
+</p>
+<p align="center">
+  <i>Desktop and Android Interfaces</i>
+</p>
+
+---
+
+## ✨ Features
+
+*   **⚡ Instant Connection:** Scan a QR code displayed on the desktop screen with your mobile device to establish access to the allowed file system directories.
+*   **🛡️ Cryptographic Security:** End-to-end encrypted (E2EE) session setup using ECDH (P-256) and AES-256-GCM, authenticated with a mandatory user-defined PIN.
+*   **🔍 Network Discovery:** Automatically discover running servers within your local Wi-Fi or LAN subnet using mDNS/NSD.
+*   **📦 Smart Downloads:** Download individual files or entire directories, which are automatically packaged as ZIP archives on the fly.
+*   **🖥️ Remote Execution:** Open files or launch associated applications on the host server directly from your mobile client.
+*   **🚀 Comprehensive Control:** Monitor connected clients, manage active sessions, and configure shared paths from the user interface or CLI.
+
+---
+
+## 📂 Project Structure
+
+The project is structured as a Kotlin Multiplatform repository:
+
+*   **`:androidApp`**: Android application built using Jetpack Compose.
+*   **`:desktopApp`**: Desktop application (JVM) built using Compose Multiplatform.
+*   **`:server`**: Standalone backend application powered by Ktor.
+*   **`:shared`**: Common platform-agnostic business logic, repositories, and UI ViewModels.
+*   **`:statistics`**: Internal logging, analytics, and performance measurement module.
+
+---
+
+## 🔒 Security Architecture
+
+*   **Key Agreement:** ECDH (Elliptic Curve Diffie-Hellman P-256) is used for establishing session keys.
+*   **Key Derivation:** A mandatory 4-digit PIN is processed as a Pre-Shared Key (PSK) using HKDF-SHA256 to mitigate man-in-the-middle vectors.
+*   **Data Encryption:** All payload communication is encrypted using authenticated AES-256-GCM.
+*   **Access Isolation:** Built-in path sandboxing prevents file operations outside of designated shared directories.
+*   **Token Protection:** Short-lived single-use media tokens are used for streaming and previews, isolating them from primary session tokens.
+*   **Hardening:** Server-side rate limiting, session time-to-live (TTL) limits, and automatic IP blocking are implemented.
+
+---
+
+## 🛠 Tech Stack
+
+*   **Kotlin Multiplatform (KMP)** — Shared cross-platform architecture.
+*   **Compose Multiplatform** — Unified UI implementation for Desktop and Android.
+*   **Ktor (Client & Server)** — Lightweight HTTP and WebSocket network stack.
+*   **Koin** — Dependency injection.
+*   **Kotlinx Serialization** — Fast, type-safe serialization.
+*   **Kotlin Cryptography** — Multiplatform cryptographic operations.
+
+---
+
+## 🚀 Running the Server
+
+You can manage the server via the Desktop/Android graphical user interface, or deploy it on headless environments using the CLI.
+
+### Quick Start (Release Package)
+```bash
+chmod +x ./server/run-server.sh
+./server/run-server.sh --pin 1234 --path ~/Documents
+```
+
+### Manual Run (From Source)
+```bash
+./gradlew :server:run --args="--pin 1234 --path /your/shared/directory"
+```
+
+### Interactive CLI Commands
+Once active, the server shell accepts the following diagnostic and control commands:
+
+*   `status` — Displays current state, listening port, and active shares.
+*   `clients` — Lists connected clients and transfer statistics.
+*   `kick <id>` — Forcefully disconnects a specific client session by ID.
+*   `ip` — Prints local IP addresses and streaming endpoints.
+*   `unban <ip>` — Clears security-related blocks/bans for an IP address.
+*   `paths` — Details active shared folders and their states.
+*   `qr` — Outputs connection details as a JSON object for manual input.
+*   `pin <4-digits>` — Updates the access PIN on the fly.
+*   `port <port>` — Rebinds the server to a new port.
+*   `add <path>` / `remove <path>` — Modifies active shared paths.
+*   `start` / `stop` — Toggles the embedded Ktor engine status.
+*   `exit` / `quit` — Gracefully stops active processes and terminates.
+
+> *Note: A 4-digit PIN is strictly required during startup for security purposes.*
+
+---
+
+## 📥 Download
+
+Pre-built binaries can be obtained from the **[Releases](https://github.com/nim0y/coon-lan-explorer-public/releases)** tab.
+
+*   **Linux/Unix (CLI Only):** Download the `.zip` archive from the releases page.
+*   **Windows:** Download the `.msi` desktop installer.
+*   **Android:** Available on **[RuStore](https://www.rustore.ru/catalog/app/com.coonstudio.coonlanexplorer)**, or as direct `.apk` downloads in Github Releases.
+
+---
+
+## 💬 Feedback & Support
+
+If you encounter an issue or have a feature proposal:
+1. Navigate to the **[Issues](https://github.com/nim0y/coon-lan-explorer-public/issues)** section.
+2. Search for existing reports to avoid duplicates.
+3. Open a new ticket with clear reproduction steps or design proposals.
+
+---
+
+<a name="русская-версия"></a>
+
+# Русская версия
+
+## 📸 Скриншоты
 
 <p align="center">
-  <img src="screenshots/Screenshot 2026-06-02 222848.png" width="300" alt="Mobile Explorer">
-  <img src="screenshots/Screenshot 2026-06-02 222900.png" width="300" alt="Mobile Explorer">
-  <img src="screenshots/Screenshot 2026-06-02 222911.png" width="300" alt="Mobile Explorer">
-  <img src="screenshots/Screenshot 2026-06-02 222921.png" width="300" alt="Mobile Explorer">
-  <img src="screenshots/Screenshot 2026-06-02 222931.png" width="300" alt="Mobile Explorer">
-  <img src="screenshots/Screenshot 2026-06-02 222939.png" width="300" alt="Mobile Explorer">
+  <img src="screenshots/Screenshot 2026-06-02 222705.png" width="400" alt="Интерфейс ПК">
+  <img src="screenshots/Screenshot 2026-06-02 222724.png" width="400" alt="Интерфейс ПК">
+  <img src="screenshots/Screenshot 2026-06-02 222811.png" width="400" alt="Desktop Interface">
+  <img src="screenshots/Screenshot 2026-06-02 222822.png" width="400" alt="Desktop Interface">
+</p>
+<p align="center">
+  <img src="screenshots/Screenshot 2026-06-02 222848.png" width="180" alt="Мобильная версия 1">
+  <img src="screenshots/Screenshot 2026-06-02 222900.png" width="180" alt="Мобильная версия 2">
+  <img src="screenshots/Screenshot 2026-06-02 222911.png" width="180" alt="Мобильная версия 3">
+  <img src="screenshots/Screenshot 2026-06-02 222921.png" width="180" alt="Mobile Explorer">
+  <img src="screenshots/Screenshot 2026-06-02 222931.png" width="180" alt="Mobile Explorer">
+  <img src="screenshots/Screenshot 2026-06-02 222939.png" width="180" alt="Mobile Explorer">
 </p>
 <p align="center">
   <i>Интерфейс приложения на Desktop и Android</i>
@@ -36,194 +166,103 @@ CoonLanExplorer — это кроссплатформенный файловый
 
 ---
 
-<a name="возможности-ru"></a>
 ## ✨ Основные возможности
 
-*   **⚡ Мгновенное подключение:** Просто отсканируйте QR-код на экране монитора своим смартфоном — и вы уже внутри файловой системы.
-*   **🛡 Безопасность военного уровня:** Все данные шифруются (AES-256-GCM + ECDH). Доступ защищен обязательным PIN-кодом, который вы задаете сами.
-*   **🔍 Автопоиск в сети:** Приложение само найдет запущенный сервер в вашей Wi-Fi сети.
-*   **📦 Умная загрузка:** Скачивайте файлы по одному или целыми папками (автоматически упаковываются в ZIP).
-*   **🖥 Удаленное управление:** Открывайте документы или запускайте видео на компьютере прямо с телефона.
-*   **🚀 Полный контроль:** Управляйте сервером, смотрите список подключенных клиентов и настраивайте права доступа в пару кликов.
+*   **⚡ Мгновенное подключение:** Отсканируйте QR-код на экране монитора мобильным устройством, чтобы получить доступ к разрешенным директориям.
+*   **🛡️ Надежное шифрование:** Сквозное шифрование сессии (E2EE) с помощью ECDH (P-256) и AES-256-GCM, защищенное обязательным пользовательским PIN-кодом.
+*   **🔍 Сетевое обнаружение:** Автоматический поиск активных серверов в локальной Wi-Fi/LAN сети через протоколы mDNS/NSD.
+*   **📦 Умное скачивание:** Загрузка отдельных файлов или директорий, автоматически упаковываемых в ZIP на лету.
+*   **🖥️ Удаленные действия:** Открытие файлов или запуск связанных приложений на хост-сервере прямо с мобильного клиента.
+*   **🚀 Контроль и мониторинг:** Отслеживание подключенных клиентов, управление сессиями и путями доступа через графический интерфейс или консоль.
 
 ---
 
-Запуск сервера
-Управлять сервером можно напрямую через графический интерфейс Desktop App или Android App.
+## 📂 Структура проекта
 
-Для Unix/Linux (Nix) систем или безграфических окружений (headless-серверов) доступна удобная CLI-версия:
+Репозиторий организован по принципам Kotlin Multiplatform:
 
-Быстрый запуск (из архива релиза)
+*   **`:androidApp`**: Мобильное приложение Android на Jetpack Compose.
+*   **`:desktopApp`**: Настольное приложение (JVM) на Compose Multiplatform.
+*   **`:server`**: Автономный файловый сервер на базе Ktor.
+*   **`:shared`**: Общая бизнес-логика, репозитории данных и UI ViewModels.
+*   **`:statistics`**: Платформо-независимый модуль для сбора аналитики и логов.
+
+---
+
+## 🔒 Архитектура безопасности
+
+*   **Согласование ключей:** ECDH (Elliptic Curve Diffie-Hellman P-256) используется для генерации сессионных ключей.
+*   **Аутентификация:** Обязательный 4-значный PIN выступает в роли Pre-Shared Key (PSK) при деривации ключей (HKDF-SHA256) для предотвращения атак типа MitM.
+*   **Шифрование данных:** Все пакеты данных шифруются по стандарту AES-256-GCM.
+*   **Песочница путей:** Механизм path sandboxing исключает выполнение файловых операций за пределами явно разрешенных директорий.
+*   **Безопасный медиа-стриминг:** Использование короткоживущих одноразовых токенов для стриминга и превью защищает основные токены авторизации.
+*   **Защитные механизмы:** Ограничение частоты запросов (rate limiting), лимит времени жизни сессии (TTL) и автоматическая блокировка подозрительных IP-адресов.
+
+---
+
+## 🛠 Технологический стек
+
+*   **Kotlin Multiplatform (KMP)** — Кроссплатформенная архитектура бизнес-логики.
+*   **Compose Multiplatform** — Единый декларативный интерфейс для Android и Desktop.
+*   **Ktor (Client & Server)** — Легковесный сетевой стек для HTTP и WebSockets.
+*   **Koin** — Внедрение зависимостей (Dependency Injection).
+*   **Kotlinx Serialization** — Быстрая сериализация данных.
+*   **Kotlin Cryptography** — Мультиплатформенная криптография.
+
+---
+
+## 🚀 Запуск сервера
+
+Вы можете управлять сервером через графический интерфейс десктопного или мобильного приложения, а также запускать его в безграфических окружениях (headless) через CLI.
+
+### Быстрый запуск (готовый релиз)
 ```bash
 chmod +x ./server/run-server.sh
 ./server/run-server.sh --pin 1234 --path ~/Documents
 ```
 
-Ручной запуск (через исходный код)
+### Ручной запуск (из исходного кода)
 ```bash
 ./gradlew :server:run --args="--pin 1234 --path /vash/put"
 ```
 
-Интерактивные команды CLI
+### Интерактивные команды CLI
 После запуска сервер предоставляет консоль управления для ввода команд:
 
-* `status` — текущее состояние, рабочий порт и список расшаренных папок.
-* `clients` — список подключенных клиентов и статистика передачи данных.
-* `pin <4-цифры>` — смена PIN-кода доступа на лету.
-* `add <путь>` / `remove <путь>` — управление списком разрешенных директорий.
-* `qr` — вывод данных подключения в формате JSON для ручной настройки.
-* `start` / `stop` — запуск и остановка веб-сервера Ktor.
-* `exit` / `quit` — безопасная остановка сервера и завершение работы приложения.
+*   `status` — текущее состояние, рабочий порт и список общих папок.
+*   `clients` — список подключенных клиентов и статистика передачи данных.
+*   `kick <id>` — принудительное завершение сессии клиента по ID.
+*   `ip` — локальные IP-адреса сервера и URL-адреса для стриминга.
+*   `unban <ip>` — сброс блокировки безопасности (разбан) для указанного IP.
+*   `paths` — подробный список расшаренных путей и их состояние.
+*   `qr` — вывод параметров подключения в формате JSON.
+*   `pin <4-цифры>` — смена PIN-кода доступа на лету.
+*   `port <порт>` — изменение рабочего порта сервера.
+*   `add <путь>` / `remove <путь>` — управление списком разрешенных директорий.
+*   `start` / `stop` — запуск и остановка веб-сервера Ktor.
+*   `exit` / `quit` — безопасная остановка и завершение работы приложения.
 
-> **Примечание:** Установка 4-значного цифрового PIN-кода обязательна при запуске для обеспечения безопасности ваших данных. Обязательно передавайте аргумент `--pin <4-цифры>`.
-
-
----
-
-## 📥 Загрузка (Download)
-
-Вы можете скачать актуальную версию для вашей платформы в разделе **[Releases](https://github.com/nim0y/coon-lan-explorer-public/releases)**.
-
-*   **nix**        [Server-cli](https://github.com/nim0y/coon-lan-explorer-public/releases) Скачайте `.zip` .
-*   **Windows:**   [MSI](https://github.com/nim0y/coon-lan-explorer-public/releases) / Скачайте `.msi` установщик.
-*   **Android:**   [В RuStore](https://www.rustore.ru/catalog/app/com.coonstudio.coonlanexplorer) / Скачайте `.apk` из релизов.
+> *Примечание: Запуск сервера требует обязательной установки 4-значного PIN-кода для обеспечения базовой защиты данных.*
 
 ---
 
-## 🛠 Технологии (Tech Stack)
+## 📥 Загрузка
 
-Приложение разработано с использованием следующих технологий:
-*   **Kotlin Multiplatform (KMP)** — общая бизнес-логика и сетевое взаимодействие для всех платформ.
-*   **Compose Multiplatform** — декларативный пользовательский интерфейс для Android и Desktop.
-*   **Ktor (Client & Server)** — встроенный легковесный веб-сервер и сетевой клиент.
-*   **Coroutines & Flow** — асинхронное выполнение операций ввода-вывода.
+Актуальные сборки доступны в разделе **[Releases](https://github.com/nim0y/coon-lan-explorer-public/releases)**.
+
+*   **Linux/Unix (CLI-версия):** Скачайте архив `.zip` со страницы релизов.
+*   **Windows:** Скачайте установщик `.msi`.
+*   **Android:** Доступно в каталоге **[RuStore](https://www.rustore.ru/catalog/app/com.coonstudio.coonlanexplorer)** или в виде `.apk` файлов в релизах GitHub.
 
 ---
 
 ## 💬 Обратная связь и поддержка
 
-Если вы столкнулись с ошибкой или хотите предложить новую функцию:
+Если вы обнаружили ошибку или хотите предложить функциональное улучшение:
 1. Перейдите во вкладку **[Issues](https://github.com/nim0y/coon-lan-explorer-public/issues)**.
-2. Проверьте, нет ли схожей проблемы в списке открытых.
-3. Если проблема не найдена, создайте новое обращение, подробно описав шаги для воспроизведения бага или суть вашего предложения.
+2. Убедитесь, что аналогичный запрос отсутствует в списке открытых задач.
+3. Создайте новую тему, детально описав сценарий воспроизведения проблемы или концепцию улучшения.
 
 ---
 
 *Developed by nim0y with ❤️*
-
----
-
-<a name="features-en"></a>
-# 🦝 CoonLanExplorer
-
-**Your personal bridge between devices on the local network.**
-
-CoonLanExplorer is a cross-platform file manager and file-sharing solution that allows you to access and manage files on your computer directly from a smartphone or another PC within the same local network.
-
-All communication happens directly between your devices without relying on cloud storage or third-party servers.
-
-> This repository serves as the public hub for the project, where official releases, documentation, and issue tracking are maintained.
-
----
-
-## ✨ Features
-
-* **⚡ Instant Connection**
-  Scan a QR code displayed on your desktop and connect to your file system in seconds.
-
-* **🛡 Secure Communication**
-  Data is protected using modern encryption (AES-256-GCM + ECDH) and secured with a user-defined PIN code.
-
-* **🔍 Automatic Network Discovery**
-  Automatically detect available servers within your local Wi-Fi or LAN.
-
-* **📦 Smart Downloads**
-  Download individual files or entire directories. Folders are automatically packaged as ZIP archives.
-
-* **🖥 Remote Actions**
-  Open documents, launch applications, or play media on your desktop directly from your mobile device.
-
-* **🚀 Full Control**
-  Monitor connected clients, manage access permissions, and configure server settings with ease.
-
----
-
-Running the Server
-You can manage the server directly through the Desktop App or Android App GUI.
-
-For Unix/Linux (Nix) systems or headless environments, a convenient CLI version is available:
-
-Quick Start (from Release Archive)
-```bash
-chmod +x ./server/run-server.sh
-./server/run-server.sh --pin 1234 --path ~/Documents
-```
-
-Manual Start (from Source Code)
-```bash
-./gradlew :server:run --args="--pin 1234 --path /your/path"
-```
-
-Interactive CLI Commands
-Once started, the server provides an interactive management console:
-
-* `status` — shows current server status, running port, and shared directories.
-* `clients` — lists currently connected clients and data transfer statistics.
-* `pin <4-digits>` — updates access PIN code on the fly.
-* `add <path>` / `remove <path>` — manages the list of allowed directories.
-* `qr` — generates connection details in JSON format for manual setup.
-* `start` / `stop` — starts or stops the embedded Ktor web server.
-* `exit` / `quit` — safely terminates the server and shuts down the application.
-
-> **Note:** Specifying a 4-digit numeric PIN is mandatory for security purposes. Always provide the `--pin <4-digits>` argument on startup.
-
----
-
-## 🔒 Security
-
-Security is a core part of the project architecture.
-
-* Each connection establishes a unique encrypted session.
-* A user-defined PIN participates in key generation and access protection.
-* Session tokens are temporary and automatically expire.
-* File access is restricted to explicitly allowed directories.
-* Data remains inside your local network and is never routed through external cloud services.
-
----
-
-## 📥 Download
-
-The latest releases are available in the Releases section.
-
-* **nix**        [Server-cli](https://github.com/nim0y/coon-lan-explorer-public/releases) / Download `.zip` from realese.
-* **Windows:**   [MSI](https://github.com/nim0y/coon-lan-explorer-public/releases) / Download `.msi` from realese.
-* **Android:**   [Store](https://www.rustore.ru/catalog/app/com.coonstudio.coonlanexplorer) / Download `.apk` from realese.
-
----
-
-## 🛠 Tech Stack
-
-Built with:
-
-* **Kotlin Multiplatform (KMP)** — shared business logic and networking
-* **Compose Multiplatform** — modern UI for Android and Desktop
-* **Ktor Client & Server** — embedded networking stack
-* **Coroutines & Flow** — asynchronous and reactive programming
-
----
-
-## 💬 Feedback & Support
-
-Found a bug or have an idea for improvement?
-
-1. Open the **Issues** tab.
-2. Check whether a similar issue already exists.
-3. Create a new issue with detailed reproduction steps or a feature request.
-
-Feedback and contributions to the project roadmap are always welcome.
-
----
-
-*Developed by nim0y with ❤️*
-
----
